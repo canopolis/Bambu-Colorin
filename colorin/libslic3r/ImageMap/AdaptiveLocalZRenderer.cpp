@@ -303,7 +303,7 @@ std::unique_ptr<AdaptiveLocalZRenderer> AdaptiveLocalZRenderer::create(const Pri
         const Transform3d local_to_print = object_to_print * volume->get_matrix();
         if (std::abs(local_to_print.linear().determinant()) <= EPSILON)
             continue;
-        impl->volumes.push_back({volume->mesh_ptr(), std::move(filtered_data), local_to_print});
+        impl->volumes.push_back({volume->mesh_shared_ptr(), std::move(filtered_data), local_to_print});
     }
     if (impl->volumes.empty() || impl->physical_components.empty())
         return nullptr;

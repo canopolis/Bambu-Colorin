@@ -2160,7 +2160,7 @@ std::unique_ptr<PerimeterEnvelopeRenderer> PerimeterEnvelopeRenderer::create(con
         const Transform3d local_to_print = object_to_print * volume->get_matrix();
         if (std::abs(local_to_print.linear().determinant()) <= EPSILON)
             continue;
-        impl->volumes.emplace_back(volume->mesh_ptr(), data, local_to_print);
+        impl->volumes.emplace_back(volume->mesh_shared_ptr(), data, local_to_print);
     }
     if (impl->volumes.empty())
         return nullptr;
