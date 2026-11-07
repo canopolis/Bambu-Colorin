@@ -31,7 +31,13 @@ jobs:
           $ov = "colorin-repo/colorin/bambu_02.09.01.70"
           if (Test-Path $ov) { Copy-Item "$ov/*" "bs" -Recurse -Force; Write-Output "overrides applied" } else { Write-Output "no overrides yet" }
           $eng = "colorin-repo/colorin/libslic3r"
-          if (Test-Path $eng) { Copy-Item $eng "bs/src/libslic3r/Colorin" -Recurse -Force }
+          if (Test-Path $eng) {
+            Copy-Item "$eng/*" "bs/src/libslic3r" -Recurse -Force
+            $root = (Resolve-Path $eng).Path
+            $srcs = Get-ChildItem $eng -Recurse -Include *.cpp,*.hpp,*.h | ForEach-Object { $_.FullName.Substring($root.Length + 1).Replace('\','/') }
+            Add-Content "bs/src/libslic3r/CMakeLists.txt" ("`ntarget_sources(libslic3r PRIVATE " + ($srcs -join ' ') + ")`n")
+            Write-Output "colorin engine files: $($srcs.Count)"
+          }
 
       - name: Cache deps
         id: deps
