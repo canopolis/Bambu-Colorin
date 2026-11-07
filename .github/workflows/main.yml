@@ -1,0 +1,77 @@
+name: Build Bambu Colorin (Windows)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  BAMBU_TAG: v02.09.01.70
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout Bambu Colorin
+        uses: actions/checkout@v4
+        with:
+          path: colorin-repo
+
+      - name: Checkout Bambu Studio ${{ env.BAMBU_TAG }}
+        uses: actions/checkout@v4
+        with:
+          repository: bambulab/BambuStudio
+          ref: ${{ env.BAMBU_TAG }}
+          path: bs
+
+      - name: Apply Colorin overrides
+        shell: pwsh
+        run: |
+          $ov = "colorin-repo/colorin/bambu_02.09.01.70"
+          if (Test-Path $ov) { Copy-Item "$ov/*" "bs" -Recurse -Force; Write-Output "overrides applied" } else { Write-Output "no overrides yet" }
+          $eng = "colorin-repo/colorin/libslic3r"
+          if (Test-Path $eng) { Copy-Item $eng "bs/src/libslic3r/Colorin" -Recurse -Force }
+
+      - name: Cache deps
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: bs/deps/build/BambuStudio_dep
+          key: win-bambu-deps-${{ env.BAMBU_TAG }}-v1
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Tools
+        run: |
+          choco install strawberryperl pkgconfiglite -y
+
+      - name: Build deps
+        if: steps.deps.outputs.cache-hit != 'true'
+        working-directory: bs
+        run: |
+          mkdir deps\build -Force
+          mkdir deps\build\BambuStudio_dep -Force
+          cd deps\build
+          cmake ../ -G "Visual Studio 18 2026" -A x64 -DDESTDIR="./BambuStudio_dep" -DCMAKE_BUILD_TYPE=Release -DDEP_DEBUG=OFF
+          msbuild /m ALL_BUILD.vcxproj /p:Configuration=Release
+
+      - name: Build Bambu Colorin
+        working-directory: bs
+        run: |
+          $sdk = (Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/Include" -Directory | Where-Object { $_.Name -match '^10\.' } | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 18 2026" -A X64 -DBBL_RELEASE_TO_PUBLIC=1 -DBBL_INTERNAL_TESTING=0 -DCMAKE_PREFIX_PATH="${{ github.workspace }}\bs\deps\build\BambuStudio_dep\usr\local" -DCMAKE_INSTALL_PREFIX="../install-dir" -DCMAKE_BUILD_TYPE=Release -DWIN10SDK_PATH="$sdk"
+          cmake --build . --target install --config Release -- -m
+
+      - name: Pack portable
+        shell: cmd
+        run: '"C:/Program Files/7-Zip/7z.exe" a -tzip BambuColorin-portable-${{ github.run_number }}.zip .\bs\install-dir\*'
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: BambuColorin-portable-${{ github.run_number }}
+          path: BambuColorin-portable-${{ github.run_number }}.zip
