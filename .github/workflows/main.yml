@@ -35,7 +35,7 @@ jobs:
             Copy-Item "$eng/*" "bs/src/libslic3r" -Recurse -Force
             $root = (Resolve-Path $eng).Path
             $srcs = Get-ChildItem $eng -Recurse -Include *.cpp,*.hpp,*.h | ForEach-Object { $_.FullName.Substring($root.Length + 1).Replace('\','/') }
-            Add-Content "bs/src/libslic3r/CMakeLists.txt" ("`ntarget_sources(libslic3r PRIVATE " + ($srcs -join ' ') + ")`n")
+            Add-Content "bs/src/libslic3r/CMakeLists.txt" ("`ntarget_sources(libslic3r PRIVATE " + ($srcs -join ' ') + ")`nfind_package(JPEG REQUIRED)`ntarget_link_libraries(libslic3r JPEG::JPEG)`n")
             Write-Output "colorin engine files: $($srcs.Count)"
           }
 
