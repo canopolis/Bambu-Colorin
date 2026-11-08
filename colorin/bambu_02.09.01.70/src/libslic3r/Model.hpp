@@ -766,6 +766,8 @@ enum class EnforcerBlockerType : int8_t {
 };
 static_assert(size_t(EnforcerBlockerType::ExtruderMax) == MAX_FILAMENT_COUNT, "ExtruderMax must cover every filament id");
 static_assert(MAX_FILAMENT_COUNT <= 127, "Filament ids are stored in the int8_t EnforcerBlockerType");
+// Bambu Colorin (Orca FullSpectrum 0.9.18)
+using EnforcerBlockerStateMap = std::array<EnforcerBlockerType, (size_t)EnforcerBlockerType::ExtruderMax + 1>;
 
 enum class ConversionType : int {
     CONV_TO_INCH,
@@ -798,6 +800,8 @@ public:
                                                        EnforcerBlockerType to_delete_filament = EnforcerBlockerType::NONE,
                                                        EnforcerBlockerType replace_filament = EnforcerBlockerType::NONE);
     indexed_triangle_set get_facets_strict(const ModelVolume& mv, EnforcerBlockerType type) const;
+    // Bambu Colorin (Orca FullSpectrum 0.9.18)
+    void remap_enforcer_block_types(const ModelVolume& mv, EnforcerBlockerType max_type, const EnforcerBlockerStateMap &state_map);
     bool has_facets(const ModelVolume& mv, EnforcerBlockerType type) const;
     bool empty() const { return m_data.first.empty(); }
 

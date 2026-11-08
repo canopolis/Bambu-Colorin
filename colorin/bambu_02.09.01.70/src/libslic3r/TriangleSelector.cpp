@@ -2056,6 +2056,18 @@ std::string encode_enforcer_blocker_type_as_facet_string(EnforcerBlockerType sta
     return encoded;
 }
 
+// Bambu Colorin (Orca FullSpectrum 0.9.18)
+void TriangleSelector::remap_triangle_state(const EnforcerBlockerStateMap& state_map)
+{
+    for (Triangle& tr : m_triangles) {
+        if (tr.valid()) {
+            const size_t current_state = static_cast<size_t>(tr.get_state());
+            if (current_state < state_map.size())
+                tr.state = state_map[current_state];
+        }
+    }
+}
+
 std::pair<std::vector<std::pair<int, int>>, std::vector<bool>> TriangleSelector::serialize() const
 {
     // Each original triangle of the mesh is assigned a number encoding its state

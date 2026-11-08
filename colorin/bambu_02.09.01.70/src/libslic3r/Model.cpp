@@ -4660,6 +4660,15 @@ void FacetsAnnotation::set_enforcer_block_type_limit(const ModelVolume  &mv,
     this->set(selector);
 }
 
+// Bambu Colorin (Orca FullSpectrum 0.9.18)
+void FacetsAnnotation::remap_enforcer_block_types(const ModelVolume& mv, EnforcerBlockerType max_type, const EnforcerBlockerStateMap &state_map)
+{
+    TriangleSelector selector(mv.mesh());
+    selector.deserialize(m_data, false, max_type);
+    selector.remap_triangle_state(state_map);
+    this->set(selector);
+}
+
 indexed_triangle_set FacetsAnnotation::get_facets_strict(const ModelVolume& mv, EnforcerBlockerType type) const
 {
     TriangleSelector selector(mv.mesh());

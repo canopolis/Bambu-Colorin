@@ -361,6 +361,9 @@ public:
                      EnforcerBlockerType                                                   replace_filament = EnforcerBlockerType::NONE);
 
     // For all triangles, remove the flag indicating that the triangle was selected by seed fill.
+    // Bambu Colorin (Orca FullSpectrum 0.9.18)
+    void remap_triangle_state(const EnforcerBlockerStateMap& state_map);
+
     void seed_fill_unselect_all_triangles();
 
     // For all triangles selected by seed fill, set new EnforcerBlockerType and remove flag indicating that triangle was selected by seed fill.
