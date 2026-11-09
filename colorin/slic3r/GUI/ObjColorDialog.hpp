@@ -20,11 +20,8 @@ class Button;
 class Label;
 class ComboBox;
 
-struct ColorDistValue
-{
-    int   id;
-    float distance;
-};
+// Bambu Colorin: ColorDistValue is already defined (identically) in Bambu GuiColor.hpp
+#include "GuiColor.hpp"
 
 class ObjColorPanel : public wxPanel
 {
