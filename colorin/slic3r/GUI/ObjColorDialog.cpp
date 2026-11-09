@@ -50,6 +50,24 @@ const int COLOR_LABEL_WIDTH = 140;
 #define ICON_SIZE                 wxSize(FromDIP(16), FromDIP(16))
 #define MIN_OBJCOLOR_DIALOG_WIDTH FromDIP(560)
 
+// Bambu Colorin: la ventana se muestra al 60% del tamano original de su contenido (ancho y alto);
+// lo que no cabe se ve con las barras de desplazamiento.
+class ColorinCappedScroll : public wxScrolledWindow
+{
+public:
+    static constexpr double SCALE = 0.60;
+    explicit ColorinCappedScroll(wxWindow *parent) : wxScrolledWindow(parent, wxID_ANY) { SetScrollRate(10, 10); }
+protected:
+    wxSize DoGetBestSize() const override
+    {
+        wxSize content(0, 0);
+        if (wxSizer *sizer = GetSizer())
+            content = sizer->GetMinSize();
+        const int sb = wxSystemSettings::GetMetric(wxSYS_VSCROLL_X);
+        return wxSize(int(content.x * SCALE) + sb, int(content.y * SCALE) + sb);
+    }
+};
+
 using APMComponentFilament = std::pair<unsigned int, wxColour>;
 
 static wxPanel* buildAPMRow(wxWindow* parent,
@@ -480,8 +498,7 @@ ObjColorDialog::ObjColorDialog(wxWindow*                       parent,
 {
     SetDoubleBuffered(true);
 
-    std::string icon_path = (boost::format("%1%/images/Snapmaker_OrcaTitle.ico") % Slic3r::resources_dir()).str();
-    SetIcon(wxIcon(Slic3r::encode_path(icon_path.c_str()), wxBITMAP_TYPE_ICO));
+    // Bambu Colorin: icono de la ventana = el de Bambu (heredado)
 
     auto m_line_top = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1));
     m_line_top->SetBackgroundColour(wxColour(166, 169, 170));
@@ -489,7 +506,9 @@ ObjColorDialog::ObjColorDialog(wxWindow*                       parent,
     SetBackgroundColour(MFDTheme::dialog_background());
     SetMinSize(wxSize(MIN_OBJCOLOR_DIALOG_WIDTH, -1));
 
-    m_panel_ObjColor = new ObjColorPanel(this, input_colors, is_single_color, import_context,
+    auto* colorin_scroll = new ColorinCappedScroll(this);
+    colorin_scroll->SetBackgroundColour(MFDTheme::dialog_background());
+    m_panel_ObjColor = new ObjColorPanel(colorin_scroll, input_colors, is_single_color, import_context,
                                          extruder_colours, filament_ids, first_extruder_id,
                                          obj_filename);
 
@@ -499,7 +518,10 @@ ObjColorDialog::ObjColorDialog(wxWindow*                       parent,
     auto sizer_width = (int)(2.8 * OBJCOLOR_ITEM_WIDTH());
     sizer_width = sizer_width > MIN_OBJCOLOR_DIALOG_WIDTH ? sizer_width : MIN_OBJCOLOR_DIALOG_WIDTH;
     main_sizer->SetMinSize(wxSize(sizer_width, -1));
-    main_sizer->Add(m_panel_ObjColor, 1, wxEXPAND | wxALL, 0);
+    auto* colorin_scroll_sizer = new wxBoxSizer(wxVERTICAL);
+    colorin_scroll_sizer->Add(m_panel_ObjColor, 1, wxEXPAND);
+    colorin_scroll->SetSizer(colorin_scroll_sizer);
+    main_sizer->Add(colorin_scroll, 1, wxEXPAND | wxALL, 0);
 
     // Footer divider
     auto* footer_divider = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1));
