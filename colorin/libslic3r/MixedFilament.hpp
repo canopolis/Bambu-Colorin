@@ -13,6 +13,10 @@
 
 namespace Slic3r {
 // Bambu Colorin: Orca libslic3r.h constant missing in Bambu Studio
+#ifndef COLORIN_MAXIMUM_EXTRUDER_NUMBER
+#define COLORIN_MAXIMUM_EXTRUDER_NUMBER
+static constexpr size_t MAXIMUM_EXTRUDER_NUMBER = 64;
+#endif
 #ifndef COLORIN_MAXIMUM_FILAMENT_NUMBER
 #define COLORIN_MAXIMUM_FILAMENT_NUMBER
 static constexpr size_t MAXIMUM_FILAMENT_NUMBER = 255;
