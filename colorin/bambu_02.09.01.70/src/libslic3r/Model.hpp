@@ -1089,6 +1089,8 @@ public:
     // A global feature filament is used when neither the volume nor the object stores that feature key.
     // Pass {} only when the global print config is not relevant or not available yet.
     std::vector<int>    get_extruders(const GlobalFeatureFilaments &global_features) const;
+    // Bambu Colorin (Orca FullSpectrum 0.9.18)
+    void                remap_extruder_ids(size_t extruder_count, const EnforcerBlockerStateMap &state_map);
     void                update_extruder_count(size_t extruder_count);
     void                update_extruder_count_when_delete_filament(size_t extruder_count, size_t filament_id, int replace_filament_id = -1,
                                                                    const std::vector<unsigned char> &filament_is_mixed = {});

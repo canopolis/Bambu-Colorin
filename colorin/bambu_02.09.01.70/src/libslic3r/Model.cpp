@@ -4661,6 +4661,21 @@ void FacetsAnnotation::set_enforcer_block_type_limit(const ModelVolume  &mv,
 }
 
 // Bambu Colorin (Orca FullSpectrum 0.9.18)
+void ModelVolume::remap_extruder_ids(size_t extruder_count, const EnforcerBlockerStateMap &state_map)
+{
+    std::vector<int> used_extruders = get_extruders(GlobalFeatureFilaments{});
+    for (int extruder_id : used_extruders) {
+        if (extruder_id <= 0)
+            continue;
+        if (extruder_id >= int(state_map.size()) || extruder_id > int(extruder_count) ||
+            state_map[size_t(extruder_id)] != EnforcerBlockerType(extruder_id)) {
+            mmu_segmentation_facets.remap_enforcer_block_types(*this, EnforcerBlockerType(extruder_count), state_map);
+            break;
+        }
+    }
+}
+
+// Bambu Colorin (Orca FullSpectrum 0.9.18)
 void FacetsAnnotation::remap_enforcer_block_types(const ModelVolume& mv, EnforcerBlockerType max_type, const EnforcerBlockerStateMap &state_map)
 {
     TriangleSelector selector(mv.mesh());
