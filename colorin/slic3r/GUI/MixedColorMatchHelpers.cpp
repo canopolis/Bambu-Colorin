@@ -2938,7 +2938,7 @@ std::vector<ModelColorEntry> extract_model_colors(const Print& print)
         for (const ModelVolume* vol : model_obj->volumes) {
             if (!vol || vol->type() != ModelVolumeType::MODEL_PART) continue;
 
-            for (int eid : vol->get_extruders()) {
+            for (int eid : vol->get_extruders(GlobalFeatureFilaments{})) {
                 if (eid < 1 || eid > MAX_EXTRUDER_ID) continue;
                 size_t idx = size_t(eid - 1);
 
