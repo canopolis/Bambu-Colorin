@@ -30,6 +30,13 @@ bool colorin_apply_obj_color_import(Model&                       model,
                                     const ObjImageMapProgressFn& image_map_progress_fn,
                                     const bool&                  obj_image_map_cancelled);
 
+// Bambu Colorin: lee un OBJ con el lector de Orca 0.9.18 y aplica su importacion de color.
+// cancelled queda en true si el usuario cancela; lanza RuntimeError si el archivo no se puede leer.
+Model colorin_read_obj_with_color(const std::string&          input_file,
+                                  const ObjImportColorFn&     objFn,
+                                  const ObjImageMapProgressFn& progress_fn,
+                                  bool&                       cancelled);
+
 } // namespace Slic3r
 
 #endif // slic3r_ColorinObjImport_hpp_

@@ -2,6 +2,7 @@
 #include "ColorinObjImport.hpp"
 
 #include "Model.hpp"
+#include "Exception.hpp"
 #include "TriangleMesh.hpp"
 #include "Format/OBJImageMap.hpp"
 #include "ImageMap/VolumeData.hpp"
@@ -440,6 +441,37 @@ bool colorin_apply_obj_color_import(Model&                       model,
             }
         }
     return result;
+}
+
+Model colorin_read_obj_with_color(const std::string&          input_file,
+                                  const ObjImportColorFn&     objFn,
+                                  const ObjImageMapProgressFn& progress_fn,
+                                  bool&                       cancelled)
+{
+    cancelled = false;
+    const ObjImageMapProgressFn wrapped = progress_fn ?
+        ObjImageMapProgressFn([&](ObjImageMapProgressStage stage, size_t current, size_t total) {
+            const bool keep_going = progress_fn(stage, current, total);
+            cancelled |= !keep_going;
+            return keep_going;
+        }) : ObjImageMapProgressFn{};
+    Model           model;
+    ColorinObjInfo  obj_info;
+    std::string     message;
+    const bool loaded = colorin_load_obj(input_file.c_str(), &model, obj_info, message, nullptr, wrapped);
+    if (cancelled)
+        return Model{};
+    if (!loaded)
+        throw Slic3r::RuntimeError(message.empty() ? std::string("Loading of a model file failed.") : message);
+    colorin_apply_obj_color_import(model, obj_info, objFn, wrapped, cancelled);
+    if (cancelled)
+        return Model{};
+    if (model.objects.empty())
+        throw Slic3r::RuntimeError("The supplied file couldn't be read because it's empty");
+    for (ModelObject* o : model.objects)
+        o->input_file = input_file;
+    model.add_default_instances();
+    return model;
 }
 
 } // namespace Slic3r
