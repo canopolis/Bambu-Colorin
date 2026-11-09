@@ -8,7 +8,7 @@
 #include "libslic3r/ImageMap/ContinuousColorSolver.hpp"
 #include "libslic3r/ImageMap/Sampling.hpp"
 #include "GUI_App.hpp"
-#include "PresetBundle.hpp"
+#include "libslic3r/PresetBundle.hpp"
 #include <algorithm>
 #include <array>
 #include <atomic>

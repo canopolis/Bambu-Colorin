@@ -26,7 +26,7 @@
 #include <wx/dcgraph.h>
 #include <wx/dcbuffer.h>
 
-#include "libslic3r/ObjColorUtils.hpp"
+#include "libslic3r/ColorinObjColorUtils.hpp"
 #include "libslic3r/ImageMap/ContinuousColorSolver.hpp"
 #include "libslic3r/ImageMap/Sampling.hpp"
 #include "MixedColorMatchHelpers.hpp"
@@ -2216,7 +2216,7 @@ bool ObjColorPanel::update_filament_ids()
         m_first_extruder_id = cadence_filament_id;
         store_layer_sequence_image_map_palette(cadence_filament_id, cadence_color);
         if (match.created && wxGetApp().plater() != nullptr)
-            wxGetApp().plater()->on_filaments_change(m_colours.size());
+            wxGetApp().plater()->on_filament_count_change(m_colours.size());
         return !m_filament_ids.empty();
     }
 
@@ -2356,7 +2356,7 @@ bool ObjColorPanel::update_filament_ids()
     if (m_is_image_map)
         store_image_map_palette(cluster_filament_ids);
     if (created_mixed_filament && wxGetApp().plater() != nullptr)
-        wxGetApp().plater()->on_filaments_change(m_colours.size());
+        wxGetApp().plater()->on_filament_count_change(m_colours.size());
 
     return !m_filament_ids.empty();
 }
@@ -3012,7 +3012,7 @@ void ObjColorPanel::deal_algo(int cluster_number, bool redraw_ui)
     const int previous_cluster_number = m_last_cluster_number;
     m_last_cluster_number = cluster_number;
 
-    QuantKMeans quant(10);
+    ColorinQuantKMeans quant(10);
     const int quantization_limit = cluster_number < 1 ?
                                        std::min(k_default_quantized_color_count, max_quantized_color_count()) :
                                        max_quantized_color_count();
