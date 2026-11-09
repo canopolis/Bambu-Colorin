@@ -401,23 +401,7 @@ wxPanel* ObjColorPanel::create_help_icon(wxWindow* parent, const wxString& toolt
 // ---------------------------------------------------------------------------
 // RGBA / wxColour conversions
 // ---------------------------------------------------------------------------
-static RGBA convert_to_rgba(const wxColour& color)
-{
-    RGBA rgba;
-    rgba[0] = std::clamp(color.Red()   / 255.f, 0.f, 1.f);
-    rgba[1] = std::clamp(color.Green() / 255.f, 0.f, 1.f);
-    rgba[2] = std::clamp(color.Blue()  / 255.f, 0.f, 1.f);
-    rgba[3] = std::clamp(color.Alpha() / 255.f, 0.f, 1.f);
-    return rgba;
-}
-
-static wxColour convert_to_wxColour(const RGBA& color)
-{
-    return wxColour(std::clamp(int(color[0] * 255.f), 0, 255),
-                    std::clamp(int(color[1] * 255.f), 0, 255),
-                    std::clamp(int(color[2] * 255.f), 0, 255),
-                    std::clamp(int(color[3] * 255.f), 0, 255));
-}
+// Bambu Colorin: convert_to_rgba / convert_to_wxColour come from Bambu GuiColor.hpp (identical code)
 
 // ---------------------------------------------------------------------------
 // ObjColorDialog — thin wrapper dialog
