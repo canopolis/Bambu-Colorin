@@ -47,6 +47,16 @@ jobs:
             Write-Output "colorin gui files: $($gsrcs.Count)"
           }
 
+      - name: Readable log (no encryption, info level)
+        shell: pwsh
+        run: |
+          $f = "bs/src/slic3r/GUI/GUI_App.cpp"
+          $t = Get-Content $f -Raw
+          $t = $t.Replace('const auto& enc_opts = s_get_log_enc_opts();', 'LogEncOptions enc_opts = s_get_log_enc_opts(); enc_opts.enc_type = LogEncOptions::LOG_ENC_NONE;')
+          $t = $t.Replace('set_log_path_and_level(log_dir, 3, enc_opts);', 'set_log_path_and_level(log_dir, 4, enc_opts);')
+          if (-not $t.Contains('LOG_ENC_NONE;')) { throw "log patch failed" }
+          Set-Content -Path $f -Value $t -NoNewline -Encoding utf8
+
       - name: Cache deps
         id: deps
         uses: actions/cache@v4
@@ -79,6 +89,10 @@ jobs:
           cd build
           cmake .. -G "Visual Studio 18 2026" -A X64 -DBBL_RELEASE_TO_PUBLIC=1 -DBBL_INTERNAL_TESTING=0 -DCMAKE_PREFIX_PATH="${{ github.workspace }}\bs\deps\build\BambuStudio_dep\usr\local" -DCMAKE_INSTALL_PREFIX="../install-dir" -DCMAKE_BUILD_TYPE=Release -DWIN10SDK_PATH="$sdk"
           cmake --build . --target install --config Release -- -m
+
+      - name: Add log launcher
+        shell: pwsh
+        run: Copy-Item "colorin-repo/colorin/iniciar_con_log.bat" "bs/install-dir/" -Force
 
       - name: Pack portable
         shell: cmd
