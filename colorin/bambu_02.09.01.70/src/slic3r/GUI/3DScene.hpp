@@ -472,6 +472,7 @@ public:
     mutable std::vector<GLIndexedVertexArray> colorin_preview_ivas;
     mutable std::vector<std::array<float, 4>> colorin_preview_colors;
     mutable const void*                       colorin_preview_src{nullptr};
+    mutable size_t                            colorin_preview_sig{0};
     mutable ObjectBase::Timestamp       mmuseg_ts;
     // Set while the Model this volume indexes into is being rewritten (cut): composite_id then
     // resolves to a different ModelVolume, so the MMU meshes must not be rebuilt from it. The volume
