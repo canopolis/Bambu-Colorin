@@ -37,6 +37,8 @@
 #include <assert.h>
 
 #include "libslic3r/Log.hpp"
+#include "libslic3r/MixedFilament.hpp"
+#include "libslic3r/ImageMap/FacetRasterizer.hpp"
 #include <map>
 #include <limits>
 
@@ -847,91 +849,54 @@ void GLVolume::set_range(double min_z, double max_z)
 //BBS: add outline related logic
 //static unsigned char stencil_data[1284][2944];
 
-// Bambu Colorin (Orca FullSpectrum 0.9.18): simple colour preview of an OBJ image map.
-// Each triangle takes the colour of its image (texture at the triangle centre, or its vertex/face colours),
-// snapped to the nearest colour of the zone palette chosen in the import dialog. Triangles are grouped
-// per colour and drawn with Bambu's own shader, like the MMU painting.
-static void colorin_build_image_map_preview(const ModelVolume&                    mv,
-                                            const ImageMap::VolumeData&           data,
-                                            std::vector<GLIndexedVertexArray>&    ivas,
-                                            std::vector<std::array<float, 4>>&    colors)
+// Bambu Colorin (Orca FullSpectrum 0.9.18): viewport colours of an OBJ image map, exactly as Orca's
+// palette view: the image map is rasterized to facets with ImageMap::rasterize_facets (same call and
+// palette resolution as Orca GLVolume::simple_render), then each filament is drawn with its colour
+// (physical filament colour, or the mixed filament display colour).
+static void colorin_build_image_map_preview(const ModelVolume&                       mv,
+                                            const ImageMap::VolumeData&              data,
+                                            const std::vector<std::array<float, 4>>& extruder_colors,
+                                            std::vector<GLIndexedVertexArray>&       ivas,
+                                            std::vector<std::array<float, 4>>&       colors)
 {
     ivas.clear();
     colors.clear();
-    const indexed_triangle_set& its = mv.mesh().its;
-
-    auto sample = [&data](const ImageMap::SurfaceSource& s) -> RGBA {
-        if (s.kind == ImageMap::SourceKind::Texture && s.texture_asset_index >= 0 &&
-            size_t(s.texture_asset_index) < data.texture_assets.size()) {
-            const ImageMap::TextureAsset& a = data.texture_assets[size_t(s.texture_asset_index)];
-            if (a.width > 0 && a.height > 0 && a.rgba.size() >= size_t(a.width) * size_t(a.height) * 4) {
-                float u = (s.uvs[0].x() + s.uvs[1].x() + s.uvs[2].x()) / 3.f;
-                float v = (s.uvs[0].y() + s.uvs[1].y() + s.uvs[2].y()) / 3.f;
-                u -= std::floor(u);
-                v -= std::floor(v);
-                const int x = std::clamp(int(u * float(a.width)), 0, int(a.width) - 1);
-                const int y = std::clamp(int((1.f - v) * float(a.height)), 0, int(a.height) - 1);
-                const uint8_t* p = &a.rgba[(size_t(y) * size_t(a.width) + size_t(x)) * 4];
-                return RGBA{p[0] / 255.f, p[1] / 255.f, p[2] / 255.f, 1.f};
-            }
+    const MixedFilamentManager* manager = GUI::wxGetApp().preset_bundle ? &GUI::wxGetApp().preset_bundle->mixed_filaments : nullptr;
+    const size_t num_physical = size_t(std::max(GUI::wxGetApp().filaments_cnt(), 0));
+    const size_t num_total    = manager ? manager->total_filaments(num_physical) : num_physical;
+    auto resolve = [manager, num_physical, num_total](const ImageMap::PaletteEntry& entry) -> unsigned int {
+        if (manager != nullptr && entry.mixed_filament_stable_id != 0) {
+            const std::optional<unsigned int> stable = manager->filament_id_from_stable_id(entry.mixed_filament_stable_id, num_physical);
+            if (stable && *stable >= 1 && *stable <= num_total)
+                return *stable;
         }
-        RGBA c{0.f, 0.f, 0.f, 1.f};
-        for (const RGBA& cc : s.corner_colors)
-            for (int k = 0; k < 3; ++k)
-                c[k] += cc[k] / 3.f;
-        return c;
+        return entry.fallback_filament_id >= 1 && entry.fallback_filament_id <= num_total ? entry.fallback_filament_id : 0u;
     };
+    const unsigned int base_filament_id = unsigned(std::clamp(mv.extruder_id(), 1, int(std::max<size_t>(1, num_total))));
+    const ImageMap::FacetRasterization rasterized = ImageMap::rasterize_facets(mv.mesh(), data, base_filament_id, resolve);
+    std::unique_ptr<FacetsAnnotation> facets = mv.mmu_segmentation_facets.copy_for_slicing();
+    for (const ImageMap::RasterizedFacet& facet : rasterized.facets)
+        if (!facet.encoded_states.empty())
+            facets->set_triangle_from_string(int(facet.triangle_index), facet.encoded_states);
+    std::vector<indexed_triangle_set> its_per_color;
+    facets->get_facets(mv, its_per_color);
 
-    std::map<std::pair<uint32_t, uint32_t>, size_t> bucket_of;
-    std::vector<indexed_triangle_set>               parts;
-    for (const ImageMap::TriangleBinding& b : data.triangle_bindings) {
-        if (b.triangle_index >= its.indices.size())
+    ivas.resize(its_per_color.size());
+    colors.assign(its_per_color.size(), std::array<float, 4>{0.6f, 0.6f, 0.6f, 1.f});
+    for (size_t idx = 0; idx < its_per_color.size(); ++idx) {
+        if (its_per_color[idx].indices.empty())
             continue;
-        const RGBA col = sample(b.source);
-        uint32_t   zone_key  = 0xFFFFFFFFu;
-        uint32_t   color_key = 0;
-        std::array<float, 4> disp{col[0], col[1], col[2], 1.f};
-        if (b.zone_index < data.zones.size() && !data.zones[b.zone_index].palette.empty()) {
-            const std::vector<ImageMap::PaletteEntry>& pal = data.zones[b.zone_index].palette;
-            float  best     = std::numeric_limits<float>::max();
-            size_t best_idx = 0;
-            for (size_t i = 0; i < pal.size(); ++i) {
-                const RGBA& t = pal[i].target_color;
-                const float d = (t[0] - col[0]) * (t[0] - col[0]) + (t[1] - col[1]) * (t[1] - col[1]) + (t[2] - col[2]) * (t[2] - col[2]);
-                if (d < best) {
-                    best     = d;
-                    best_idx = i;
-                }
-            }
-            zone_key  = b.zone_index;
-            color_key = uint32_t(best_idx);
-            const RGBA& t = pal[best_idx].target_color;
-            disp      = {t[0], t[1], t[2], 1.f};
-        } else {
-            const int r = std::clamp(int(col[0] * 7.f + 0.5f), 0, 7);
-            const int g = std::clamp(int(col[1] * 7.f + 0.5f), 0, 7);
-            const int bl = std::clamp(int(col[2] * 7.f + 0.5f), 0, 7);
-            color_key = uint32_t(r * 64 + g * 8 + bl);
-            disp      = {r / 7.f, g / 7.f, bl / 7.f, 1.f};
+        ivas[idx].load_its_flat_shading(its_per_color[idx]);
+        ivas[idx].finalize_geometry(true);
+        const unsigned int filament_id = idx == 0 ? base_filament_id : unsigned(idx);
+        if (filament_id >= 1 && filament_id <= num_physical && filament_id <= extruder_colors.size()) {
+            colors[idx] = extruder_colors[filament_id - 1];
+        } else if (manager != nullptr && filament_id > num_physical) {
+            const std::optional<MixedFilamentDefinition> definition = manager->mixed_filament_definition_from_id(filament_id, num_physical);
+            ColorRGBA rgba;
+            if (definition && decode_color(definition->presentation.display_color, rgba))
+                colors[idx] = {rgba.r(), rgba.g(), rgba.b(), 1.f};
         }
-        const auto key = std::make_pair(zone_key, color_key);
-        auto it = bucket_of.find(key);
-        if (it == bucket_of.end()) {
-            it = bucket_of.emplace(key, parts.size()).first;
-            parts.emplace_back();
-            colors.push_back(disp);
-        }
-        indexed_triangle_set& part = parts[it->second];
-        const stl_triangle_vertex_indices& tri = its.indices[b.triangle_index];
-        const int base = int(part.vertices.size());
-        for (int k = 0; k < 3; ++k)
-            part.vertices.push_back(its.vertices[size_t(tri[k])]);
-        part.indices.emplace_back(base, base + 1, base + 2);
-    }
-    ivas.resize(parts.size());
-    for (size_t i = 0; i < parts.size(); ++i) {
-        ivas[i].load_its_flat_shading(parts[i]);
-        ivas[i].finalize_geometry(true);
     }
 }
 
@@ -956,9 +921,16 @@ void GLVolume::render(const GUI::Camera &camera, const std::vector<std::array<fl
                 ModelVolume* colorin_mv = colorin_mo->volumes[volume_idx()];
                 const std::shared_ptr<const ImageMap::VolumeData> colorin_data = colorin_mv->image_map_data();
                 if (colorin_data && !colorin_data->empty()) {
-                    if (colorin_preview_src != colorin_data.get()) {
-                        colorin_build_image_map_preview(*colorin_mv, *colorin_data, colorin_preview_ivas, colorin_preview_colors);
+                    size_t colorin_sig = colors.size();
+                    for (const auto& cc : colors)
+                        for (float f : cc)
+                            colorin_sig = colorin_sig * 1000003u + size_t(f * 1000.f);
+                    if (GUI::wxGetApp().preset_bundle)
+                        colorin_sig = colorin_sig * 1000003u + GUI::wxGetApp().preset_bundle->mixed_filaments.total_filaments(colors.size());
+                    if (colorin_preview_src != colorin_data.get() || colorin_preview_sig != colorin_sig) {
+                        colorin_build_image_map_preview(*colorin_mv, *colorin_data, colors, colorin_preview_ivas, colorin_preview_colors);
                         colorin_preview_src = colorin_data.get();
+                        colorin_preview_sig = colorin_sig;
                     }
                     const auto colorin_shader = GUI::wxGetApp().get_current_shader();
                     if (colorin_shader && !colorin_preview_ivas.empty()) {
