@@ -818,6 +818,8 @@ public:
     void set_triangle_from_string(int triangle_id, const std::string& str);
     // After deserializing the last triangle, shrink data to fit.
     void shrink_to_fit() { m_data.first.shrink_to_fit(); m_data.second.shrink_to_fit(); }
+    // Bambu Colorin (Orca FullSpectrum 0.9.18): private copy used to rasterize an image map for display/slicing.
+    std::unique_ptr<FacetsAnnotation> copy_for_slicing() const { return std::unique_ptr<FacetsAnnotation>(new FacetsAnnotation(*this)); }
     bool equals(const FacetsAnnotation &other) const;
 
 private:
