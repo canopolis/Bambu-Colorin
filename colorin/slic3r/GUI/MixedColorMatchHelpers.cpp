@@ -2520,6 +2520,8 @@ static void load_filament_compatibility()
     if (s_compat_loaded.load(std::memory_order_acquire)) return;
     std::lock_guard<std::mutex> lock(s_compat_mutex);
     if (s_compat_loaded.load(std::memory_order_acquire)) return;
+    // Bambu Colorin: mark as loaded even when the file is missing, so it is read only once.
+    struct ColorinCompatLoadedGuard { ~ColorinCompatLoadedGuard() { s_compat_loaded.store(true, std::memory_order_release); } } colorin_compat_guard;
 
     // Default: each category compatible only with itself
     s_compat.assign(k_compat_dim, std::vector<bool>(k_compat_dim, false));
@@ -2531,8 +2533,8 @@ static void load_filament_compatibility()
         const boost::filesystem::path user_path = (boost::filesystem::path(Slic3r::data_dir()) / PRESET_SYSTEM_DIR
                                                     / PresetBundle::SM_BUNDLE / "filament"
                                                     / "filament_compatibility.json").make_preferred();
-        const boost::filesystem::path rsrc_path = (boost::filesystem::path(Slic3r::resources_dir()) / "profiles"
-                                                    / PresetBundle::SM_BUNDLE / "filament"
+        // Bambu Colorin: the rules ship in resources/colorin (Bambu has no Snapmaker profile folder).
+        const boost::filesystem::path rsrc_path = (boost::filesystem::path(Slic3r::resources_dir()) / "colorin"
                                                     / "filament_compatibility.json").make_preferred();
         const std::string path = (boost::filesystem::exists(user_path) ? user_path : rsrc_path).string();
 
