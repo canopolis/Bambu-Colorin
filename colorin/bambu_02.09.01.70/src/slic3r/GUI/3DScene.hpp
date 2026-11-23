@@ -282,6 +282,11 @@ enum LOD_LEVEL {
     SMALL,
 };
 
+// Bambu Colorin (Orca FullSpectrum 0.9.18): Orca source-colour preview job (defined in 3DScene.cpp).
+struct SourceColorPreviewJob;
+namespace ImageMap { struct VolumeData; }
+namespace GUI { class GLTexture; }
+
 class GLVolume {
     static float LOD_HIGH_ZOOM;
     static float LOD_MIDDLE_ZOOM;
@@ -474,6 +479,18 @@ public:
     mutable const void*                       colorin_preview_src{nullptr};
     mutable size_t                            colorin_preview_sig{0};
     mutable size_t                            colorin_preview_geo_sig{static_cast<size_t>(-1)};
+    // Bambu Colorin (Orca FullSpectrum 0.9.18): Orca's smooth source-colour preview (texture on the mesh UVs).
+    mutable std::shared_ptr<SourceColorPreviewJob>               colorin_src_job;
+    mutable const void*                                          colorin_src_data{nullptr};
+    mutable size_t                                               colorin_src_sig{0};
+    mutable std::shared_ptr<GUI::GLModel>                        colorin_src_model;
+    mutable std::vector<std::shared_ptr<GUI::GLModel>>           colorin_src_tex_models;
+    mutable std::vector<std::shared_ptr<GUI::GLTexture>>         colorin_src_textures;
+    mutable std::vector<std::array<bool, 2>>                     colorin_src_wraps;
+    bool colorin_render_source_preview(const GUI::Camera&                                 camera,
+                                       ModelVolume&                                       model_volume,
+                                       const std::shared_ptr<const ImageMap::VolumeData>& image_map_data,
+                                       const std::vector<std::array<float, 4>>&           extruder_colors) const;
     mutable ObjectBase::Timestamp       mmuseg_ts;
     // Set while the Model this volume indexes into is being rewritten (cut): composite_id then
     // resolves to a different ModelVolume, so the MMU meshes must not be rebuilt from it. The volume
