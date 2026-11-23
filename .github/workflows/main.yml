@@ -71,6 +71,14 @@ jobs:
         run: |
           choco install strawberryperl pkgconfiglite -y
 
+      - name: Pin CMake 4.4.5 (CMake 4.5 breaks the Boost dependency build)
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check cmake==4.4.5
+          $d = python -c "import sysconfig;print(sysconfig.get_path('scripts'))"
+          Add-Content -Path $env:GITHUB_PATH -Value $d
+          & (Join-Path $d 'cmake.exe') --version
+
       - name: Build deps
         if: steps.deps.outputs.cache-hit != 'true'
         working-directory: bs
