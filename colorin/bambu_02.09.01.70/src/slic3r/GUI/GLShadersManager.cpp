@@ -46,6 +46,8 @@ std::pair<bool, std::string> GLShadersManager::init()
     valid &= append_shader("flat", { glsl_version_prefix + "flat.vs", glsl_version_prefix + "flat.fs"});
     // Bambu Colorin (Orca FullSpectrum 0.9.18): high-resolution image-map preview on the source mesh UVs.
     valid &= append_shader("image_map_texture_preview", { glsl_version_prefix + "image_map_texture_preview.vs", glsl_version_prefix + "image_map_texture_preview.fs"});
+    // Bambu Colorin (Orca FullSpectrum 0.9.18): per-vertex colours of an OBJ image map without texture.
+    valid &= append_shader("colorin_vertex_color", { glsl_version_prefix + "colorin_vertex_color.vs", glsl_version_prefix + "colorin_vertex_color.fs"});
     valid &= append_shader("flat_instance", { glsl_version_prefix + "flat_instance.vs", glsl_version_prefix + "flat.fs"});
     // used to render printbed
     valid &= append_shader("printbed", { glsl_version_prefix + "printbed.vs", glsl_version_prefix + "printbed.fs"});
