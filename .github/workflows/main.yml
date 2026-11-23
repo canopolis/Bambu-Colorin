@@ -89,13 +89,24 @@ jobs:
           cmake ../ -G "Visual Studio 18 2026" -A x64 -DDESTDIR="./BambuStudio_dep" -DCMAKE_BUILD_TYPE=Release -DDEP_DEBUG=OFF
           msbuild /m ALL_BUILD.vcxproj /p:Configuration=Release
 
+      - name: Save deps cache now (so a later failure does not lose it)
+        if: steps.deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: bs/deps/build/BambuStudio_dep
+          key: win-bambu-deps-${{ env.BAMBU_TAG }}-v1
+
       - name: Build Bambu Colorin
         working-directory: bs
         run: |
+          # Strawberry Perl ships a pkg-config script that CMake cannot run; use the pkgconfiglite exe.
+          $pc = (Get-Command pkg-config.exe -All -ErrorAction SilentlyContinue | Where-Object { $_.Source -notlike '*Strawberry*' } | Select-Object -First 1).Source
+          if (-not $pc) { $pc = 'C:/ProgramData/chocolatey/bin/pkg-config.exe' }
+          Write-Output "pkg-config: $pc"
           $sdk = (Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/Include" -Directory | Where-Object { $_.Name -match '^10\.' } | Sort-Object Name -Descending | Select-Object -First 1).FullName
           mkdir build
           cd build
-          cmake .. -G "Visual Studio 18 2026" -A X64 -DBBL_RELEASE_TO_PUBLIC=1 -DBBL_INTERNAL_TESTING=0 -DCMAKE_PREFIX_PATH="${{ github.workspace }}\bs\deps\build\BambuStudio_dep\usr\local" -DCMAKE_INSTALL_PREFIX="../install-dir" -DCMAKE_BUILD_TYPE=Release -DWIN10SDK_PATH="$sdk"
+          cmake .. -G "Visual Studio 18 2026" -A X64 -DBBL_RELEASE_TO_PUBLIC=1 -DBBL_INTERNAL_TESTING=0 -DCMAKE_PREFIX_PATH="${{ github.workspace }}\bs\deps\build\BambuStudio_dep\usr\local" -DCMAKE_INSTALL_PREFIX="../install-dir" -DCMAKE_BUILD_TYPE=Release -DWIN10SDK_PATH="$sdk" -DPKG_CONFIG_EXECUTABLE="$pc"
           cmake --build . --target install --config Release -- -m
 
       - name: Add log launcher
