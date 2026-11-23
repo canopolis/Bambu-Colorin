@@ -96,6 +96,20 @@ jobs:
           path: bs/deps/build/BambuStudio_dep
           key: win-bambu-deps-${{ env.BAMBU_TAG }}-v1
 
+      - name: Prepare Node.js for the device page (Bambu's own extraction fails on the runner)
+        shell: pwsh
+        run: |
+          $v = '22.22.2'
+          $dir = Join-Path '${{ github.workspace }}' 'node-cache'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $zip = Join-Path $dir "node-v$v-win-x64.zip"
+          Invoke-WebRequest "https://nodejs.org/dist/v$v/node-v$v-win-x64.zip" -OutFile $zip
+          tar -xf $zip -C $dir
+          Remove-Item $zip
+          $exe = Join-Path $dir "node-v$v-win-x64/node.exe"
+          if (-not (Test-Path $exe)) { throw "node.exe missing after extraction" }
+          & $exe --version
+
       - name: Build Bambu Colorin
         working-directory: bs
         run: |
