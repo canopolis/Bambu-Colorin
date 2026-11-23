@@ -855,12 +855,9 @@ void GLVolume::set_range(double min_z, double max_z)
 // (physical filament colour, or the mixed filament display colour).
 static void colorin_build_image_map_preview(const ModelVolume&                       mv,
                                             const ImageMap::VolumeData&              data,
-                                            const std::vector<std::array<float, 4>>& extruder_colors,
-                                            std::vector<GLIndexedVertexArray>&       ivas,
-                                            std::vector<std::array<float, 4>>&       colors)
+                                            std::vector<GLIndexedVertexArray>&       ivas)
 {
     ivas.clear();
-    colors.clear();
     const MixedFilamentManager* manager = GUI::wxGetApp().preset_bundle ? &GUI::wxGetApp().preset_bundle->mixed_filaments : nullptr;
     const size_t num_physical = size_t(std::max(GUI::wxGetApp().filaments_cnt(), 0));
     const size_t num_total    = manager ? manager->total_filaments(num_physical) : num_physical;
@@ -882,12 +879,26 @@ static void colorin_build_image_map_preview(const ModelVolume&                  
     facets->get_facets(mv, its_per_color);
 
     ivas.resize(its_per_color.size());
-    colors.assign(its_per_color.size(), std::array<float, 4>{0.6f, 0.6f, 0.6f, 1.f});
     for (size_t idx = 0; idx < its_per_color.size(); ++idx) {
         if (its_per_color[idx].indices.empty())
             continue;
         ivas[idx].load_its_flat_shading(its_per_color[idx]);
         ivas[idx].finalize_geometry(true);
+    }
+}
+
+// Bambu Colorin: colours of each preview part (cheap, recomputed when filament colours change).
+static void colorin_image_map_preview_colors(const ModelVolume&                       mv,
+                                             size_t                                   count,
+                                             const std::vector<std::array<float, 4>>& extruder_colors,
+                                             std::vector<std::array<float, 4>>&       colors)
+{
+    const MixedFilamentManager* manager = GUI::wxGetApp().preset_bundle ? &GUI::wxGetApp().preset_bundle->mixed_filaments : nullptr;
+    const size_t num_physical = size_t(std::max(GUI::wxGetApp().filaments_cnt(), 0));
+    const size_t num_total    = manager ? manager->total_filaments(num_physical) : num_physical;
+    const unsigned int base_filament_id = unsigned(std::clamp(mv.extruder_id(), 1, int(std::max<size_t>(1, num_total))));
+    colors.assign(count, std::array<float, 4>{0.6f, 0.6f, 0.6f, 1.f});
+    for (size_t idx = 0; idx < count; ++idx) {
         const unsigned int filament_id = idx == 0 ? base_filament_id : unsigned(idx);
         if (filament_id >= 1 && filament_id <= num_physical && filament_id <= extruder_colors.size()) {
             colors[idx] = extruder_colors[filament_id - 1];
@@ -927,9 +938,19 @@ void GLVolume::render(const GUI::Camera &camera, const std::vector<std::array<fl
                             colorin_sig = colorin_sig * 1000003u + size_t(f * 1000.f);
                     if (GUI::wxGetApp().preset_bundle)
                         colorin_sig = colorin_sig * 1000003u + GUI::wxGetApp().preset_bundle->mixed_filaments.total_filaments(colors.size());
-                    if (colorin_preview_src != colorin_data.get() || colorin_preview_sig != colorin_sig) {
-                        colorin_build_image_map_preview(*colorin_mv, *colorin_data, colors, colorin_preview_ivas, colorin_preview_colors);
-                        colorin_preview_src = colorin_data.get();
+                    // Geometry is rebuilt only when the image map or the number of filaments changes;
+                    // colours alone are cheap and are refreshed when the filament colours change.
+                    const size_t colorin_geo_sig = GUI::wxGetApp().preset_bundle ?
+                        GUI::wxGetApp().preset_bundle->mixed_filaments.total_filaments(size_t(std::max(GUI::wxGetApp().filaments_cnt(), 0))) : 0;
+                    bool colorin_geo_changed = false;
+                    if (colorin_preview_src != colorin_data.get() || colorin_preview_geo_sig != colorin_geo_sig) {
+                        colorin_build_image_map_preview(*colorin_mv, *colorin_data, colorin_preview_ivas);
+                        colorin_preview_src     = colorin_data.get();
+                        colorin_preview_geo_sig = colorin_geo_sig;
+                        colorin_geo_changed     = true;
+                    }
+                    if (colorin_geo_changed || colorin_preview_sig != colorin_sig || colorin_preview_colors.size() != colorin_preview_ivas.size()) {
+                        colorin_image_map_preview_colors(*colorin_mv, colorin_preview_ivas.size(), colors, colorin_preview_colors);
                         colorin_preview_sig = colorin_sig;
                     }
                     const auto colorin_shader = GUI::wxGetApp().get_current_shader();
