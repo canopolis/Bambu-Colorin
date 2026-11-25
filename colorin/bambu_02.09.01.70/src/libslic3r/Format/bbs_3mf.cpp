@@ -7235,7 +7235,10 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
             }
 
             // Bambu Colorin (Orca FullSpectrum 0.9.18)
-            if (config != nullptr && !_add_fullspectrum_parts_to_archive(archive, model, *config, objects_data)) {
+            // Bambu Colorin: Bambu's automatic backup runs on the UI thread about once a minute; writing the
+            // FullSpectrum image map (hundreds of MB on big OBJs) there froze the program for 10-40 s each time.
+            // It is written only when the user saves the project.
+            if (config != nullptr && !m_from_backup_save && !_add_fullspectrum_parts_to_archive(archive, model, *config, objects_data)) {
                 BOOST_LOG_TRIVIAL(error) << "_add_fullspectrum_parts_to_archive failed";
                 return false;
             }
