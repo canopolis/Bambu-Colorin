@@ -483,8 +483,11 @@ PackageModel build_package_model(const DynamicPrintConfig &config,
     model.project.legacy_projection_written = write_legacy_projection;
 
     const auto        seed_t0      = std::chrono::steady_clock::now();
+    // Bambu Colorin: seed the ids with the cached SHA-256 of the image-map JSON instead of copying and
+    // hashing the whole JSON twice (hundreds of MB on big OBJs; it cost about 9 s per save). The ids are
+    // opaque names, the reader does not recompute them.
     const std::string project_seed = materials_json + mixed_json +
-                                     (model.image_maps ? model.image_maps_json : std::string()) +
+                                     (model.image_maps ? (model.image_maps_sha256.empty() ? sha256_hex(model.image_maps_json) : model.image_maps_sha256) : std::string()) +
                                      geometry.project_name;
     model.project.project_id = make_stable_id("proj", project_seed);
     BOOST_LOG_TRIVIAL(info) << "FullSpectrum save timing: project seed + project id "
